@@ -1,15 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useRef, useState} from 'react';
-import {
-  Animated,
-  Button,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 
 type Player = 'X' | 'O' | null;
-
+const initialScore: any = {X: 0, O: 0, Draws: 0};
 const App: React.FC = () => {
   const [board, setBoard] = useState<Player[]>(Array(9).fill(null));
   const [currentPlayer, setCurrentPlayer] = useState<Player>('X');
@@ -19,17 +13,40 @@ const App: React.FC = () => {
     null,
   );
   const [shouldStopBlinking, setShouldStopBlinking] = useState<boolean>(false);
-  const [scores, setScores] = useState<{X: number; O: number; Draws: number}>({
-    X: 0,
-    O: 0,
-    Draws: 0,
-  });
+  const [scores, setScores] = useState<{X: number; O: number; Draws: number}>(
+    initialScore,
+  );
 
   const animatedValues = useRef(
     Array(9)
       .fill(null)
       .map(() => new Animated.Value(0)),
   ).current;
+
+  // Fetch stored scores from AsyncStorage on mount
+  useEffect(() => {
+    const loadScores = async () => {
+      try {
+        const storedScores = await AsyncStorage.getItem('scores');
+        if (storedScores) setScores(JSON.parse(storedScores));
+      } catch (error) {
+        console.error('Failed to load scores', error);
+      }
+    };
+    loadScores();
+  }, []);
+
+  // Save scores to AsyncStorage whenever they change
+  useEffect(() => {
+    const saveScores = async () => {
+      try {
+        await AsyncStorage.setItem('scores', JSON.stringify(scores));
+      } catch (error) {
+        console.error('Failed to save scores', error);
+      }
+    };
+    saveScores();
+  }, [scores]);
 
   useEffect(() => {
     if (winningCombination && !shouldStopBlinking) {
@@ -53,7 +70,7 @@ const App: React.FC = () => {
       });
     }
   }, [winningCombination, shouldStopBlinking]);
-
+  console.log(scores == initialScore, 'scoresscores');
   const checkWinner = (board: Player[]): Player | null => {
     const winningCombinations = [
       [0, 1, 2],
@@ -112,6 +129,20 @@ const App: React.FC = () => {
     setTurnMessage('Your Turn');
   };
 
+  const resetScores = async () => {
+    const newScores = {X: 0, O: 0, Draws: 0};
+    setScores(newScores);
+    try {
+      await AsyncStorage.setItem('scores', JSON.stringify(newScores));
+    } catch (error) {
+      console.error('Failed to reset scores', error);
+    }
+  };
+
+  const areScoresEqual = (a: any, b: any) => {
+    return Object.keys(a).every(key => a[key] === b[key]);
+  };
+
   const renderCell = (index: number) => {
     const value = board[index];
     const isWinningCell = winningCombination?.includes(index);
@@ -136,6 +167,12 @@ const App: React.FC = () => {
     );
   };
 
+  const renderButton = (title: string, onPress: () => void) => (
+    <Pressable style={styles.button} onPress={onPress}>
+      <Text style={styles.buttonText}>{title}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Tic Tac Toe</Text>
@@ -159,15 +196,19 @@ const App: React.FC = () => {
 
       <View style={styles.board}>
         {board.map((_, index) => (
-          <TouchableOpacity key={index} onPress={() => handlePress(index)}>
+          <Pressable key={index} onPress={() => handlePress(index)}>
             {renderCell(index)}
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
-      {winner || turnMessage.includes('Draw') ? (
-        <Button title="Reset Game" onPress={handleReset} />
-      ) : null}
+      <View style={{opacity: winner || turnMessage.includes('Draw') ? 1 : 0}}>
+        {renderButton('Reset Game', handleReset)}
+      </View>
+
+      <View style={{opacity: areScoresEqual(scores, initialScore) ? 0 : 1}}>
+        {renderButton('Reset Scores', resetScores)}
+      </View>
     </View>
   );
 };
@@ -221,7 +262,7 @@ const styles = StyleSheet.create({
   cell: {
     width: 80,
     height: 80,
-    margin: 8,
+    margin: 4,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -235,5 +276,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#333',
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
