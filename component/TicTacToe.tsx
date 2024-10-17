@@ -251,7 +251,11 @@ const TicTacToe: React.FC = () => {
       </View>
 
       {/* Reset buttons */}
-      <View style={{opacity: winner || board.some(cell => cell) ? 1 : 0, marginTop:30}}>
+      <View
+        style={{
+          opacity: winner || board.some(cell => cell) ? 1 : 0,
+          marginTop: 30,
+        }}>
         {renderButton('Reset Game', handleReset)}
       </View>
       <View style={{opacity: areScoresEqual(scores, initialScore) ? 0 : 1}}>
